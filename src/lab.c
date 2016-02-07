@@ -101,6 +101,12 @@ int btree_node_is_full(struct node_t * x) {
 	return (x->n == 2 * MIN_CHILDREN - 1);
 }
 
+void btree_node_copy_key( struct node_t * x, int i, char * k )
+{
+	x->keys[i] = malloc( strlen( k ) + 1 );
+	strcpy( x->keys[i], k );
+}
+
 void btree_insert_nonfull(struct node_t * x, char * k) {
 	if (x == NULL) {
 		fprintf( stderr, "[FATAL]: x == NULL.\n");
@@ -116,7 +122,8 @@ void btree_insert_nonfull(struct node_t * x, char * k) {
 			else
 				break;
 		}
-		x->keys[i + 1] = k; // !
+		//x->keys[i + 1] = k; // !
+		btree_node_copy_key( x, i+1, k );
 		x->n++;
 		//
 	} else {
@@ -223,8 +230,14 @@ int main(void) {
 		fprintf( stderr, "main: root=NULL");
 		exit(1);
 	}
-	btree_insert(&root, "01_first");
-	btree_insert(&root, "02_second");
+	int i;
+	char str[256];
+	for(i=0;i<100;i++)
+	{
+		sprintf( str, "%02d", i);
+		btree_insert(&root, str);
+	}
+	/*btree_insert(&root, "02_second");
 	btree_insert(&root, "03_third");
 	btree_insert(&root, "04_fourth");
 	btree_insert(&root, "05_fifth");
@@ -234,7 +247,7 @@ int main(void) {
 	btree_insert(&root, "09_nineth");
 	btree_insert(&root, "10_tenth");
 	btree_insert(&root, "11_eleventh");
-	btree_insert(&root, "12_twelfth");
+	btree_insert(&root, "12_twelfth");*/
 
 	btree_print(root);
 

@@ -13,151 +13,173 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <string.h>
 
-#define HEADER_SIZE	(sizeof(struct header_t))
-
-#pragma pack(1)
-struct header_t {
-	int32_t version;
-	int64_t avail;
+struct leaf_t {
+	char * key;
+	char * content;
+	struct leaf_t * prev;
+	struct leaf_t * next;
+	unsigned char balanced;
 };
 
-#define ERRNO 1
+struct leaf_t * avl_insert(struct leaf_t * head, char * k) {
+	struct leaf_t *t, *s, *p, *q, *r;
+	int a;
 
-#define VERSION (0x00020000)
+	t = head;
+	s = p = head->next;
+	int cmp_res = strcmp(k, p->key);
+	a2: if (cmp_res == -1)
+		goto a3;
+	else if (cmp_res == 1)
+		goto a4;
+	else
+		return p; // успешное завершение
+	a3: q = p->prev;
+	if (q == NULL) {
+		q = malloc(sizeof(struct leaf_t));
+		p->prev = q;
+		goto a5;
+	} else if (q->balanced != 0) {
+		t = p;
+		s = q;
+		p = q;
+		goto a2;
+	}
+	a4: q = p->next;
+	if (q == NULL) {
+		q = malloc(sizeof(struct leaf_t));
+		p->next = q;
+		goto a5;
+	} else if (q->balanced != 0) {
+		t = p;
+		s = q;
+		p = q;
+		goto a2;
+	}
+	a5: q->key = malloc(strlen(k) + 1);
+	strcpy(q->key, k);
+	q->prev = q->next = NULL;
+	q->balanced = 0;
+	a6: cmp_res = strcmp(k, s->key);
+	if (cmp_res == -1) {
+		a = -1;
+		r = p = s->prev;
+	} else {
+		a = 1;
+		r = p = s->next;
+	}
 
-#define BYTE( x, n ) (((x)>>((n)*8))&(0xff))
-#define SBYTE( x, n ) (((x)&(0xff))<<((n)*8))
-#define BIG_ENDIAN32( x ) SBYTE(BYTE(x,0),3) | SBYTE(BYTE(x,1),2) | SBYTE(BYTE(x,2),1) | SBYTE(BYTE(x,3),0)
-
-void wtf(int code, char * message, ...) {
-	va_list ap;
-	va_start(ap, message);
-	if (code == ERRNO)
-		print_errno();
-	fprintf( stderr, "[WTF]: ");
-	vfprintf( stderr, message, ap);
-	fprintf( stderr, "\n");
-
-	va_end(ap);
-	exit(code);
-}
-
-// #define ERRNOS 2
-int errno_nos[] = { EPERM, ENOENT, 0 };
-char * errno_names[] = { "EPERM", "ENOENT", NULL };
-
-char * find_errno_name() {
-	int val = errno;
-	int i;
-	char * name;
-	for (i = 0; errno_nos[i]; i++) {
-		if (val == errno_nos[i]) {
-			name = errno_names[i];
-			break;
+	while (p != q) {
+		cmp_res = strcmp(k, p->key);
+		if (cmp_res == -1) {
+			p->balanced = -1;
+			p = p->prev;
+		} else if (cmp_res == 1) {
+			p->balanced = 1;
+			p = p->next;
 		}
-
 	}
-	if (name)
-		return errno_names[i];
-	return "?";
-}
-
-void print_errno() {
-	fprintf( stderr, "errno=%d (%s)\n", errno, find_errno_name());
-}
-
-#pragma pack(1)
-struct block_t {
-	int32_t size;
-	int32_t next;
-};
-
-FILE * f = NULL;
-
-// Переходит по заданному адресу, читает там block_t и
-// записывает по переданному указателю.
-int seek_to_block(struct block_t * block, int64_t offset) {
-	fprintf( stderr, "[INFO]: перехожу по адресу %ld\n", offset);
-	if (!!fseek(f, offset, SEEK_SET))
-		wtf( ERRNO, "Не могу перейти по адресу %ld.", offset);
-
-	if (1 != fread(block, sizeof(struct block_t), 1, f)) {
-		if (feof(f)) {
-			block->size = 0;
-			block->next = 0;
-			return 0;
-		} else
-			wtf( ERRNO, "Не могу прочитать блок.");
+	a7: if (s->balanced == 0) {
+		s->balanced = a;
+		head->prev++;
+		goto stop;
+	} else if (s->balanced == -a) {
+		s->balanced = 0;
+		goto stop;
+	} else if (s->balanced == a) {
+		if (r->balanced == a)
+			goto a8;
+		if (r->balanced == -a)
+			goto a9;
 	}
-	return 1;
+	a8: p = r;
+	if (a == -1) {
+		s->prev = r->next;
+		r->next = s;
+	} else if (a == 1) {
+		s->next = r->prev;
+		r->prev = s;
+	}
+	s->balanced = r->balanced = 0;
+	goto a10;
+	a9: if (a == -1) {
+		p = r->next;
+		r->next = p->prev;
+		p->prev = r;
+		s->prev = p->next;
+		p->next = s;
+	} else if (a == 1) {
+		p = r->prev;
+		r->prev = p->next;
+		p->next = r;
+		s->next = p->prev;
+		p->prev = s;
+	}
+	if (p->balanced == a) {
+		s->balanced = -a;
+		r->balanced = 0;
+	} else if (p->balanced == 0) {
+		s->balanced = r->balanced = 0;
+	} else if (p->balanced == -a) {
+		s->balanced = 0;
+		r->balanced = a;
+	}
+	p->balanced = 0;
+	a10: if (s == t->next)
+		t->next = p;
+	else
+		t->prev = p;
+stop:
+	return p;
 }
 
-int is_null_block(struct block_t * block) {
-	return block->size == 0 && block->next == 0;
-}
-
-struct block_t avail;
-
-void dalloc( int bytes )
+void avl_print2( struct leaf_t * root )
 {
-	struct block_t block;
-	block.size = bytes;
-	/*if( is_null_block( avail ) )
-	{
+	printf( "key: %s", root->key );
+}
 
-	}*/
+void avl_print1( struct leaf_t * root )
+{
+	if( root->prev )
+		avl_print1( root->prev );
+	avl_print2( root );
+	if( root->next )
+		avl_print1( root->next );
+}
+
+void avl_print( struct leaf_t * head )
+{
+	struct leaf_t * p = head->next;
+	avl_print1( p );
+}
+
+struct leaf_t head;
+struct leaf_t root;
+
+void leaf_set_key( struct leaf_t * node, char * key )
+{
+	node->key = malloc(strlen(key) + 1);
+	strcpy(node->key, key);
 }
 
 int main(void) {
-	assert(sizeof(struct header_t) == 8 + 4);
+	root.prev = NULL;
+	root.next = NULL;
+	//leaf_set_key( &root, "first" );
+	root.content = "";
+	root.balanced = 0;
 
-	char * filename = "database.bin";
+	head.prev = 0;
+	head.next = NULL;root;
 
-	f = fopen(filename, "r+");
-	if (f == NULL) {
-		if ( errno == ENOENT) {
-			f = fopen(filename, "w+");
-			if (f == NULL)
-				wtf( ERRNO, "Не могу создать файл.");
-		} else
-			wtf( ERRNO, "Не могу открыть файл.");
-	}
+	struct leaf_t * new = avl_insert( &head, "second");
+	new = avl_insert( &head, "third");
+	//leaf_set_key( new, "second");
 
-	int code;
 
-	struct header_t header;
-	long length;
-	if (!!fseek(f, 0, SEEK_END))
-		wtf( ERRNO, "Не могу перейти к концу файла.");
-	length = ftell(f);
+	avl_print( &head );
 
-	if (length < HEADER_SIZE) {
-		if (!!ftruncate(fileno(f), HEADER_SIZE))
-			wtf( ERRNO,
-					"Не могу сделать размер файла достаточным для заголовка.");
-		header.version = BIG_ENDIAN32(VERSION);
-
-		// указатель на следующий байт после заголовка
-		// там находится длина свободного блока и указатель на следующий блок
-		header.avail = HEADER_SIZE;
-		if (1 != (code = fwrite(&header, HEADER_SIZE, 1, f)))
-			wtf( ERRNO, "Не могу впервые записать заголовок.");
-	} else {
-		if (!!fseek(f, 0, SEEK_SET))
-			wtf( ERRNO, "Не могу перейти в начало файла.");
-		if (1 != (code = fread(&header, HEADER_SIZE, 1, f)))
-			wtf( ERRNO,
-					"Не могу прочитать заголовок (HEADER_SIZE=%d, code=%d).",
-					HEADER_SIZE, code);
-
-		if (!(header.version == BIG_ENDIAN32(VERSION)))
-			wtf(3, "Версия не соответствует.");
-
-		seek_to_block(&avail, header.avail);
-	}
-
-	if (0 != fclose(f))
-		wtf(2, "Не могу закрыть файл.");
-	return EXIT_SUCCESS;
+	return 0;
 }

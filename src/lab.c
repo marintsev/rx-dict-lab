@@ -67,12 +67,54 @@ void print_errno() {
 	fprintf( stderr, "errno=%d (%s)\n", errno, find_errno_name());
 }
 
+#pragma pack(1)
+struct block_t {
+	int32_t size;
+	int32_t next;
+};
+
+FILE * f = NULL;
+
+// Переходит по заданному адресу, читает там block_t и
+// записывает по переданному указателю.
+int seek_to_block(struct block_t * block, int64_t offset) {
+	fprintf( stderr, "[INFO]: перехожу по адресу %ld\n", offset);
+	if (!!fseek(f, offset, SEEK_SET))
+		wtf( ERRNO, "Не могу перейти по адресу %ld.", offset);
+
+	if (1 != fread(block, sizeof(struct block_t), 1, f)) {
+		if (feof(f)) {
+			block->size = 0;
+			block->next = 0;
+			return 0;
+		} else
+			wtf( ERRNO, "Не могу прочитать блок.");
+	}
+	return 1;
+}
+
+int is_null_block(struct block_t * block) {
+	return block->size == 0 && block->next == 0;
+}
+
+struct block_t avail;
+
+void dalloc( int bytes )
+{
+	struct block_t block;
+	block.size = bytes;
+	/*if( is_null_block( avail ) )
+	{
+
+	}*/
+}
+
 int main(void) {
 	assert(sizeof(struct header_t) == 8 + 4);
 
 	char * filename = "database.bin";
 
-	FILE * f = fopen(filename, "r+");
+	f = fopen(filename, "r+");
 	if (f == NULL) {
 		if ( errno == ENOENT) {
 			f = fopen(filename, "w+");
@@ -112,7 +154,7 @@ int main(void) {
 		if (!(header.version == BIG_ENDIAN32(VERSION)))
 			wtf(3, "Версия не соответствует.");
 
-
+		seek_to_block(&avail, header.avail);
 	}
 
 	if (0 != fclose(f))

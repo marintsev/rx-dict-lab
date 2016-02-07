@@ -15,171 +15,106 @@
 #include <stdarg.h>
 #include <string.h>
 
-struct leaf_t {
-	char * key;
-	char * content;
-	struct leaf_t * prev;
-	struct leaf_t * next;
-	unsigned char balanced;
+struct node_t {
+	int n; // количество ключей
+	char ** keys; // ключи (n штук)
+	int is_leaf; // является ли листом?
+	struct node_t * pointers; // указатели на детей (n+1 штук)
 };
 
-struct leaf_t * avl_insert(struct leaf_t * head, char * k) {
-	struct leaf_t *t, *s, *p, *q, *r;
-	int a;
-
-	t = head;
-	s = p = head->next;
-	int cmp_res = strcmp(k, p->key);
-	a2: if (cmp_res == -1)
-		goto a3;
-	else if (cmp_res == 1)
-		goto a4;
-	else
-		return p; // успешное завершение
-	a3: q = p->prev;
-	if (q == NULL) {
-		q = malloc(sizeof(struct leaf_t));
-		p->prev = q;
-		goto a5;
-	} else if (q->balanced != 0) {
-		t = p;
-		s = q;
-		p = q;
-		goto a2;
-	}
-	a4: q = p->next;
-	if (q == NULL) {
-		q = malloc(sizeof(struct leaf_t));
-		p->next = q;
-		goto a5;
-	} else if (q->balanced != 0) {
-		t = p;
-		s = q;
-		p = q;
-		goto a2;
-	}
-	a5: q->key = malloc(strlen(k) + 1);
-	strcpy(q->key, k);
-	q->prev = q->next = NULL;
-	q->balanced = 0;
-	a6: cmp_res = strcmp(k, s->key);
-	if (cmp_res == -1) {
-		a = -1;
-		r = p = s->prev;
-	} else {
-		a = 1;
-		r = p = s->next;
-	}
-
-	while (p != q) {
-		cmp_res = strcmp(k, p->key);
-		if (cmp_res == -1) {
-			p->balanced = -1;
-			p = p->prev;
-		} else if (cmp_res == 1) {
-			p->balanced = 1;
-			p = p->next;
-		}
-	}
-	a7: if (s->balanced == 0) {
-		s->balanced = a;
-		head->prev++;
-		goto stop;
-	} else if (s->balanced == -a) {
-		s->balanced = 0;
-		goto stop;
-	} else if (s->balanced == a) {
-		if (r->balanced == a)
-			goto a8;
-		if (r->balanced == -a)
-			goto a9;
-	}
-	a8: p = r;
-	if (a == -1) {
-		s->prev = r->next;
-		r->next = s;
-	} else if (a == 1) {
-		s->next = r->prev;
-		r->prev = s;
-	}
-	s->balanced = r->balanced = 0;
-	goto a10;
-	a9: if (a == -1) {
-		p = r->next;
-		r->next = p->prev;
-		p->prev = r;
-		s->prev = p->next;
-		p->next = s;
-	} else if (a == 1) {
-		p = r->prev;
-		r->prev = p->next;
-		p->next = r;
-		s->next = p->prev;
-		p->prev = s;
-	}
-	if (p->balanced == a) {
-		s->balanced = -a;
-		r->balanced = 0;
-	} else if (p->balanced == 0) {
-		s->balanced = r->balanced = 0;
-	} else if (p->balanced == -a) {
-		s->balanced = 0;
-		r->balanced = a;
-	}
-	p->balanced = 0;
-	a10: if (s == t->next)
-		t->next = p;
-	else
-		t->prev = p;
-stop:
-	return p;
-}
-
-void avl_print2( struct leaf_t * root )
-{
-	printf( "key: %s", root->key );
-}
-
-void avl_print1( struct leaf_t * root )
-{
-	if( root->prev )
-		avl_print1( root->prev );
-	avl_print2( root );
-	if( root->next )
-		avl_print1( root->next );
-}
-
-void avl_print( struct leaf_t * head )
+/*void btree_print( struct leaf_t * head )
 {
 	struct leaf_t * p = head->next;
 	avl_print1( p );
-}
+}*/
 
-struct leaf_t head;
-struct leaf_t root;
+struct node_t * root;
 
-void leaf_set_key( struct leaf_t * node, char * key )
+/*void leaf_set_key( struct leaf_t * node, char * key )
 {
 	node->key = malloc(strlen(key) + 1);
 	strcpy(node->key, key);
+}*/
+
+struct node_t * btree_create()
+{
+	struct node_t * new = malloc( sizeof( struct node_t ) );
+	new->is_leaf = 1;
+	new->n = 0;
+	new->keys = NULL;
+	new->pointers = NULL;
+	return new;
+}
+
+#define MIN_CHILDREN	4
+
+struct node_t * btree_node_create()
+{
+	struct node_t * x = malloc( sizeof( struct node_t ));
+	x->n = 0;
+	x->pointers = NULL;
+	x->keys = NULL;
+	return x;
+}
+
+// выделяет n keys и n+1 pointers
+void btree_node_allocate( struct node_t * x, int n )
+{
+	assert( x->pointers == NULL );
+	assert( x->keys == NULL );
+	x->n = n;
+	x->keys = malloc( sizeof( char* ) * n );
+	x->pointers = malloc( sizeof( char* ) * (n+1) );
+}
+
+// x -- ссылка на родительский узел
+// i -- номер потомка, который заполнен и который надо разделить
+void btree_split_child( struct node_t * x, int i )
+{
+	struct node_t *z,
+	              *y;
+	z = btree_node_create();
+	y = x->pointers[i];
+	z.is_leaf = y.is_leaf;
+	btree_node_allocate( z, MIN_CHILDREN-1 );
+
+	// x.keys = (k0 k1 k2 ...) (k_i) (k_i+1...)
+
+	int j;
+	// копируем в новый узел ключи после k_i:
+	// z.keys = (k_{i+1} k_{i+2} ... k_{n-1})
+	for( j=0; j<MIN_CHILDREN-1; j++ )
+		z->keys[j] = y->keys[j+MIN_CHILDREN];
+	// если наш заполненный узел не лист, то копируем и его указатели
+	if( !y.is_leaf )
+	{
+		for( j=0; j<MIN_CHILDREN; j++ )
+			z->pointers[j] = y->pointers[j+MIN_CHILDREN];
+	}
+	// мы отделили от y размером 2*(t-1)+1 узел размером t-1.
+	y.n = MIN_CHILDREN-1;
+
+	// сдвигаем в родительском узле указатели правее i на один
+	for( j=x->n; j>=i; j-- )
+		x->pointers[j+1]=x->pointers[j];
+
+	// бывший указатель по-прежнему указывает на y
+	// правее от него будет указывать на z
+	x->pointers[i+1] = z;
+	// сдвигаем ключи справа от заданного на 1
+	for( j=x.n-1; j>=i-1; j--)
+		x->keys[j+1]=x->keys[j];
+	// устанавливаем между k_i и k_{i+1} бывший центральный ключ в y
+	x->keys[i]=y->keys[MIN_CHILDREN];
+	// в родительском теперь на одну запись больше
+	x->n++;
 }
 
 int main(void) {
-	root.prev = NULL;
-	root.next = NULL;
-	//leaf_set_key( &root, "first" );
-	root.content = "";
-	root.balanced = 0;
-
-	head.prev = 0;
-	head.next = NULL;root;
-
-	struct leaf_t * new = avl_insert( &head, "second");
-	new = avl_insert( &head, "third");
-	//leaf_set_key( new, "second");
+	root = btree_create();
 
 
-	avl_print( &head );
+	//avl_print( &head );
 
 	return 0;
 }

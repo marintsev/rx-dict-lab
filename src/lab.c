@@ -8,27 +8,11 @@
  ============================================================================
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <assert.h>
-#include <stdarg.h>
-#include <string.h>
+#include "main.h"
 
-struct node_t {
-	int n; // количество ключей
-	char ** keys; // ключи (n штук)
-	int is_leaf; // является ли листом?
-	struct node_t ** pointers; // указатели на детей (n+1 штук)
-};
+#include "btree_print.h"
 
 struct node_t * root;
-
-/*void leaf_set_key( struct leaf_t * node, char * key )
- {
- node->key = malloc(strlen(key) + 1);
- strcpy(node->key, key);
- }*/
 
 struct node_t * btree_node_create() {
 	struct node_t * x = malloc(sizeof(struct node_t));
@@ -174,53 +158,6 @@ void btree_insert(struct node_t ** t, char * k) {
 	}
 }
 
-void indent(int n) {
-	int i;
-	for (i = 0; i < n; i++)
-		putchar(' ');
-}
-
-void btree_subprint(struct node_t * root, int level) {
-	if (root == NULL) {
-		fprintf(stderr, "[FATAL] Корень дерева == NULL.\n");
-		exit(1);
-	}
-
-	int size = root->n;
-	if (size == 0) {
-		printf("Пустое дерево.\n");
-	} else {
-		// Лист, следовательно указателей нет
-		if (root->is_leaf) {
-			indent(level);
-			printf("Лист размера %d:\n", size);
-			int i;
-			for (i = 0; i < size; i++) {
-				indent(level + 1);
-				printf("Ключ: %s\n", root->keys[i]);
-			}
-		} else {
-			indent(level);
-			printf("Узел размера %d\n", size);
-			if (size == 0) {
-				fprintf(stderr, "[FATAL]: size=0\n");
-				exit(1);
-			}
-			btree_subprint(root->pointers[0], level + 2);
-			int i;
-			for (i = 0; i < size; i++) {
-				indent(level + 1);
-				printf("Ключ: %s\n", root->keys[i]);
-				btree_subprint(root->pointers[i + 1], level + 2);
-			}
-		}
-	}
-}
-
-void btree_print(struct node_t * root) {
-	btree_subprint(root, 0);
-}
-
 int main(void) {
 	root = btree_create();
 
@@ -231,12 +168,13 @@ int main(void) {
 		exit(1);
 	}
 	int i;
-	char str[256];
+	/*char str[256];
 	for(i=0;i<100;i++)
 	{
 		sprintf( str, "%02d", i);
 		btree_insert(&root, str);
-	}
+	}*/
+	btree_insert(&root, "01_first");
 	/*btree_insert(&root, "02_second");
 	btree_insert(&root, "03_third");
 	btree_insert(&root, "04_fourth");

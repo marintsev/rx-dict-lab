@@ -14,7 +14,7 @@ void btree_node_allocate(struct node_t * x, int n) {
 	assert(x->keys == NULL);
 	x->n = n;
 	// 409 если сделать произвольной длины
-	int max_n = 31; //2 * MIN_CHILDREN - 1;
+	int max_n = 409; //2 * MIN_CHILDREN - 1;
 	x->keys = malloc(sizeof(char*) * max_n);
 	x->pointers = malloc(sizeof(char*) * (max_n + 1));
 }
@@ -41,79 +41,6 @@ void btree_node_free(struct node_t * x) {
 	free(x);
 }
 
-#define CROSS_NOT		0
-#define CROSS_BEGIN		1
-#define CROSS_MID		2
-#define CROSS_END		3
-#define CROSS_SKIP		4
-
-// пересекает ли отрезок размером length с началом в here границу border?
-int is_cross(int here, int length, int border) {
-	if (here < border) {
-		if (here < border - length) {
-			return CROSS_NOT; // не пересекает
-		} else if (here == border - length) {
-			return CROSS_END; // концом
-		} else if (here > border - length) {
-			return CROSS_MID; // середина
-		}
-	} else if (here == border) {
-		return CROSS_BEGIN; // начало
-	} else if (here > border) {
-		return CROSS_SKIP; // заведомо после
-	}
-}
-
-int btree_node_leaf_who_at_middle(struct node_t * x) {
-	assert(x->is_leaf);
-	int offset = 2;
-	int i = 0;
-	again: if (i == x->n) {
-		return -1;
-	} else {
-		int res = is_cross(offset, 8, 2048);
-		if (res != CROSS_NOT)
-			return i;
-		offset += 8;
-		res = is_cross(offset, 128, 2048);
-		if (res != CROSS_NOT && res != CROSS_END)
-			return i;
-		offset += 128;
-		i++;
-		goto again;
-	}
-}
-
-int btree_node_node_who_at_middle(struct node_t * x) {
-	assert(!(x->is_leaf));
-	int offset = 2;
-	int i = 0;
-	again: if (i == x->n) {
-		int res = is_cross(offset, 8, 2048);
-		if (res != CROSS_NOT && res != CROSS_END)
-			return i;
-		return -1;
-	} else {
-		int res = is_cross(offset, 8, 2048);
-		if (res != CROSS_NOT)
-			return i;
-		offset += 8;
-		res = is_cross(offset, 128, 2048);
-		if (res != CROSS_NOT && res != CROSS_END)
-			return i;
-		offset += 128;
-		i++;
-		goto again;
-	}
-}
-
-int btree_node_who_at_middle(struct node_t * x) {
-	if (x->is_leaf)
-		return btree_node_leaf_who_at_middle(x);
-	else
-		return btree_node_node_who_at_middle(x);
-}
-
 // x -- ссылка на родительский узел
 // i -- номер потомка, который заполнен и который надо разделить
 void btree_split_child(struct node_t * x, int i) {
@@ -128,9 +55,10 @@ void btree_split_child(struct node_t * x, int i) {
 	// копируем в новый узел ключи после k_i:
 	// z.keys = (k_{i+1} k_{i+2} ... k_{n-1})
 	int central = btree_node_who_at_middle(y);
+	fprintf(stderr, "central: %d.\n", central);
 	assert(central != -1);
 
-	btree_node_allocate(z, y->n-central-1);
+	btree_node_allocate(z, y->n - central - 1);
 
 	for (j = 0; j < y->n - central - 1; j++)
 		z->keys[j] = y->keys[j + central + 1]; // !!!

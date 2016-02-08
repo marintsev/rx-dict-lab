@@ -12,6 +12,7 @@
 
 #include "btree_print.h"
 #include "btree.h"
+#include "btree_node.h"
 
 struct node_t * root;
 
@@ -64,6 +65,7 @@ int main(void) {
 	int i;
 
 	for (i = 0; i < 1000; i++) {
+		//fprintf(stderr, "i: %d.\n", i);
 		btree_insert(&root, "01_first");
 		btree_insert(&root, "02_second");
 		btree_insert(&root, "03_third");

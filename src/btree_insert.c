@@ -1,4 +1,5 @@
 #include "btree_insert.h"
+#include "btree_node.h"
 
 void btree_insert_nonfull(struct node_t * x, char * k) {
 	if (x == NULL) {
@@ -9,20 +10,25 @@ void btree_insert_nonfull(struct node_t * x, char * k) {
 	int i = x->n - 1;
 	if (x->is_leaf) {
 		//fprintf( stderr, "[INFO]: x is leaf.\n" );
-		for (; i >= 0; i--) {
+		for (; i >= 0; ) {
 			if (strcmp(k, x->keys[i]) < 0)
+			{
 				x->keys[i + 1] = x->keys[i]; // !
+				i--;
+			}
 			else
 				break;
 		}
 		//x->keys[i + 1] = k; // !
+		/*char str[256];
+		sprintf(str,"%s*",k);*/
 		btree_node_load_key(x, i + 1, k);
 		x->n++;
 		//
 	} else {
-		for (; i >= 0; i--) {
+		for (; i >= 0; ) {
 			if (strcmp(k, x->keys[i]) < 0)
-				x->keys[i + 1] = x->keys[i]; // !
+				i--;
 			else
 				break;
 		}

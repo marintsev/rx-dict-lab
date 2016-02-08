@@ -1,24 +1,5 @@
 #include "btree.h"
 
-struct node_t * btree_node_create() {
-	struct node_t * x = malloc(sizeof(struct node_t));
-	x->n = 0;
-	x->pointers = NULL;
-	x->keys = NULL;
-	return x;
-}
-
-// выделяет n keys и n+1 pointers
-void btree_node_allocate(struct node_t * x, int n) {
-	assert(x->pointers == NULL);
-	assert(x->keys == NULL);
-	x->n = n;
-	// 409 если сделать произвольной длины
-	int max_n = 409; //2 * MIN_CHILDREN - 1;
-	x->keys = malloc(sizeof(char*) * max_n);
-	x->pointers = malloc(sizeof(char*) * (max_n + 1));
-}
-
 struct node_t * btree_create() {
 	struct node_t * new = btree_node_create();
 	new->is_leaf = 1;

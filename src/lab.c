@@ -64,7 +64,7 @@ int main(void) {
 	}
 	int i;
 
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 29; i++) {
 		//fprintf(stderr, "i: %d.\n", i);
 		btree_insert(&root, "01_first");
 		btree_insert(&root, "02_second");

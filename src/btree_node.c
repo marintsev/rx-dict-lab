@@ -1,5 +1,24 @@
 #include "btree_node.h"
 
+struct node_t * btree_node_create() {
+	struct node_t * x = malloc(sizeof(struct node_t));
+	x->n = 0;
+	x->pointers = NULL;
+	x->keys = NULL;
+	return x;
+}
+
+// выделяет n keys и n+1 pointers
+void btree_node_allocate(struct node_t * x, int n) {
+	assert(x->pointers == NULL);
+	assert(x->keys == NULL);
+	x->n = n;
+	// 409 если сделать произвольной длины
+	int max_n = 410; //2 * MIN_CHILDREN - 1;
+	x->keys = malloc(sizeof(char*) * max_n);
+	x->pointers = malloc(sizeof(char*) * (max_n + 1));
+}
+
 // пересекает ли отрезок размером length с началом в here границу border?
 int is_cross(int here, int length, int border) {
 	if (here < border) {
@@ -123,6 +142,13 @@ int btree_node_encode(void * page, struct node_t * node) {
 		((u_int64_t*) p1)[0] = 0xBEEFDEADBEEFDEAD;
 		offset += 8;
 		p1 += 8;
+	}
+	int rest = offset;
+	while( rest < 4096 )
+	{
+		*p1 = 0;
+		p1++;
+		rest++;
 	}
 	return offset;
 }

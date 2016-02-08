@@ -63,7 +63,7 @@ int main(void) {
 	}
 	int i;
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < 1000; i++) {
 		btree_insert(&root, "01_first");
 		btree_insert(&root, "02_second");
 		btree_insert(&root, "03_third");

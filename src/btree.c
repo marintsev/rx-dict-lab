@@ -64,11 +64,34 @@ int is_cross(int here, int length, int border) {
 	}
 }
 
-int btree_leaf_who_at_middle(struct node_t * x) {
+int btree_node_leaf_who_at_middle(struct node_t * x) {
 	assert(x->is_leaf);
 	int offset = 2;
 	int i = 0;
 	again: if (i == x->n) {
+		return -1;
+	} else {
+		int res = is_cross(offset, 8, 2048);
+		if (res != CROSS_NOT)
+			return i;
+		offset += 8;
+		res = is_cross(offset, 128, 2048);
+		if (res != CROSS_NOT && res != CROSS_END)
+			return i;
+		offset += 128;
+		i++;
+		goto again;
+	}
+}
+
+int btree_node_node_who_at_middle(struct node_t * x) {
+	assert(!(x->is_leaf));
+	int offset = 2;
+	int i = 0;
+	again: if (i == x->n) {
+		int res = is_cross(offset, 8, 2048);
+		if (res != CROSS_NOT && res != CROSS_END)
+			return i;
 		return -1;
 	} else {
 		int res = is_cross(offset, 8, 2048);
@@ -85,26 +108,10 @@ int btree_leaf_who_at_middle(struct node_t * x) {
 }
 
 int btree_node_who_at_middle(struct node_t * x) {
-	assert(x->is_leaf);
-	int offset = 2;
-	int i = 0;
-	again: if (i == x->n) {
-		int res = is_cross(offset, 8, 2048);
-		if (res != CROSS_NOT && res != CROSS_END)
-			return i;
-		return -1;
-	} else {
-		int res = is_cross(offset, 8, 2048);
-		if (res != CROSS_NOT)
-			return i;
-		offset += 8;
-		res = is_cross(offset, 128, 2048);
-		if (res != CROSS_NOT && res != CROSS_END)
-			return i;
-		offset += 128;
-		i++;
-		goto again;
-	}
+	if (x->is_leaf)
+		return btree_node_leaf_who_at_middle(x);
+	else
+		return btree_node_node_who_at_middle(x);
 }
 
 // x -- ссылка на родительский узел
@@ -114,22 +121,26 @@ void btree_split_child(struct node_t * x, int i) {
 	z = btree_node_create();
 	y = x->pointers[i];
 	z->is_leaf = y->is_leaf;
-	btree_node_allocate(z, MIN_CHILDREN - 1);
 
 	// x.keys = (k0 k1 k2 ...) (k_i) (k_i+1...)
 
 	int j;
 	// копируем в новый узел ключи после k_i:
 	// z.keys = (k_{i+1} k_{i+2} ... k_{n-1})
-	for (j = 0; j < MIN_CHILDREN - 1; j++)
-		z->keys[j] = y->keys[j + MIN_CHILDREN]; // !!!
+	int central = btree_node_who_at_middle(y);
+	assert(central != -1);
+
+	btree_node_allocate(z, y->n-central-1);
+
+	for (j = 0; j < y->n - central - 1; j++)
+		z->keys[j] = y->keys[j + central + 1]; // !!!
 	// если наш заполненный узел не лист, то копируем и его указатели
 	if (!y->is_leaf) {
-		for (j = 0; j < MIN_CHILDREN; j++)
-			z->pointers[j] = y->pointers[j + MIN_CHILDREN];
+		for (j = 0; j < y->n - central; j++)
+			z->pointers[j] = y->pointers[j + central + 1];
 	}
 	// мы отделили от y размером 2*(t-1)+1 узел размером t-1.
-	y->n = MIN_CHILDREN - 1;
+	y->n = central;
 
 	// сдвигаем в родительском узле указатели правее i на один
 	for (j = x->n; j >= i; j--)
@@ -142,7 +153,7 @@ void btree_split_child(struct node_t * x, int i) {
 	for (j = x->n - 1; j >= i - 1; j--)
 		x->keys[j + 1] = x->keys[j]; // !!!
 	// устанавливаем между k_i и k_{i+1} бывший центральный ключ в y
-	x->keys[i] = y->keys[MIN_CHILDREN - 1]; // !!!
+	x->keys[i] = y->keys[central]; // !!!
 	// в родительском теперь на одну запись больше
 	x->n++;
 }

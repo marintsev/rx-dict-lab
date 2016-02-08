@@ -3,5 +3,7 @@
 
 #include "main.h"
 
+extern void btree_print(struct node_t * root);
+
 #endif
 

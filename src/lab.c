@@ -178,9 +178,8 @@ void btree_insert(struct node_t ** t, char * k) {
 	}
 }
 
-int btree_delete( struct node_t ** root, char * k )
-{
-	return btree_delete_detail( root, *root, k );
+int btree_delete(struct node_t ** root, char * k) {
+	return btree_delete_detail(root, *root, k);
 }
 
 int btree_delete_detail(struct node_t ** root, struct node_t * x, char * k) {
@@ -229,7 +228,8 @@ int btree_delete_detail(struct node_t ** root, struct node_t * x, char * k) {
 					fprintf(stderr,
 							"[INFO]: btree_delete: узел справа достаточно большой. Удаляем в нём.\n");
 					char * k1 = btree_node_save_key(z, 0);
-					fprintf(stderr,"Удаление вида: %d %s\n", btree_delete_detail(root, z, k1), k1);
+					fprintf(stderr, "Удаление вида: %d %s\n",
+							btree_delete_detail(root, z, k1), k1);
 					btree_node_load_key(x, found_index, k1);
 					return 1;
 				} else {
@@ -264,27 +264,132 @@ int btree_delete_detail(struct node_t ** root, struct node_t * x, char * k) {
 					btree_node_free(z); //функция должна знать z.n, поэтому мы его не меняли
 
 					// если в x ничего не осталось, то y -- новый корень
-					if( x->n == 0 )
-					{
+					if (x->n == 0) {
 						*root = y;
 						btree_node_free(x);
 					}
 
 					/*printf("До удаления");
-					btree_print( *root );*/
+					 btree_print( *root );*/
 					// удалить k из y
-					int delete_code = btree_delete_detail( root, y, k );
+					int delete_code = btree_delete_detail(root, y, k);
 					/*printf("После удаления");
-					btree_print( *root );*/
+					 btree_print( *root );*/
 					printf("Удаление вида: %d %s\n", delete_code, k);
 					return 2;
 				}
 			}
 		} else {
-			fprintf(stderr, "[TODO]: btree_delete: !is_leaf.\n");
-			exit(1);
+			// находим корень x.c_i поддерева, которое должно содержать k
+			int delete_type = 4;
+
+			assert(x->n != 0);
+			int i = 0;
+			int found_index = -1;
+			while (1) {
+				int cmp_res = strcmp(k, x->keys[i]);
+				if (cmp_res == -1) {
+					found_index = i;
+					break;
+				} else if (cmp_res == 0) {
+					assert(0); // не должно быть равных ключей
+				} else if (cmp_res == 1) {
+					i++;
+					if (i == x->n) {
+						found_index = i;
+						break;
+					}
+				}
+			}
+			fprintf(stderr, "%s: Наден указатель %d,\n", k, found_index);
+			// теперь found_index содержит индекс x->pointers поддерева, содержащего k
+			assert(found_index != -1);
+			struct node_t * v = x->pointers[found_index];
+			fprintf(stderr, "%s: Наден указатель %d, размер: %d.\n", k,
+					found_index, v->n);
+			fflush(stderr);
+			// если x.c_i содержит только t-1 ключей, то
+			if (v->n == MIN_CHILDREN - 1) {
+				// а
+				struct node_t * left = NULL;
+				if (found_index != 0)
+					left = x->pointers[found_index - 1];
+				struct node_t * right = NULL;
+				if (found_index != x->n)
+					right = x->pointers[found_index + 1];
+
+				// если левый сосед имеет не менее t ключей
+				if (left != NULL && left->n >= MIN_CHILDREN) {
+					fprintf(stderr, "[TODO]: btree_delete: (t) [t-1] ?.\n");
+					exit(1);
+				} else if (right != NULL && right->n >= MIN_CHILDREN) {
+					// если правый сосед имеет не менее t ключей
+					fprintf(stderr, "[TODO]: btree_delete: ? [t-1] (t).\n");
+					exit(1);
+				} else if (left == NULL && right == NULL) {
+					fprintf(stderr, "[FATAL]: btree_delete: left==right==NULL\n");
+					exit(1);
+				} else if ((left == NULL || left->n == MIN_CHILDREN - 1)
+						&& (right == NULL || right->n == MIN_CHILDREN - 1)) {
+					// один или оба соседа имеют t-1
+					fprintf(stderr,
+							"[TODO]: btree_delete: (t-1)? [t-1] (t-1)?.\n");
+
+					// левый
+					if (left != NULL && right == NULL) {
+						fprintf(stderr, "[INFO]: Объединяем (t-1) [t-1].\n");
+						// левый узел содержит t-1 записей, текущий t-1, правого не существует
+						// сдвинем всё на t вправо в текущем узле
+						int i;
+						for (i = 0; i < MIN_CHILDREN - 1; i++)
+							v->keys[i + MIN_CHILDREN] = v->keys[i];
+						for (i = 0; i < MIN_CHILDREN; i++)
+							v->pointers[i + MIN_CHILDREN] = v->pointers[i];
+						v->keys[MIN_CHILDREN - 1] = x->keys[found_index - 1];
+						for (i = 0; i < MIN_CHILDREN - 1; i++)
+							v->keys[i] = left->keys[i];
+						for (i = 0; i < MIN_CHILDREN; i++)
+							v->pointers[i] = left->pointers[i];
+						v->n += 1 + left->n;
+						left->n = 0;
+						btree_node_free(left);
+						x->n--;
+						// если в x ничего не осталось, то y -- новый корень
+						if (x->n == 0) {
+							*root = v;
+							btree_node_free(x);
+						}
+						delete_type = 5;
+						fprintf( stderr,
+								"[INFO]. Объединив левый (t-1) и текущий (t-1) удаляем как (%d).\n",
+								btree_delete_detail(root, v, k));
+						return delete_type;
+					} else if (left == NULL && right != NULL) {
+						fprintf(stderr, "[TODO]: btree_delete: правый.\n");
+						exit(1);
+					} else if (left != NULL && right != NULL) {
+						fprintf(stderr, "[TODO]: btree_delete: оба.\n");
+						exit(1);
+					}
+					assert(0);
+
+					return -1;
+				} else {
+					fprintf(stderr, "[TODO]: btree_delete: ? [t-1] ?.\n");
+					exit(1);
+				}
+			} else {
+				// узел достаточно большой: ничего делать не надо
+			}
+			// рекурсивно удаляем k из соответствующего дочернего узла
+			fprintf( stderr,
+					"[INFO]. Удел достаточно большой. Просто удаляем (%d).\n",
+					btree_delete_detail(root, v, k));
+			return delete_type;
 		}
 
+		fprintf(stderr, "[TODO]: btree_delete: !is_leaf.\n");
+		exit(1);
 	}
 }
 
@@ -314,9 +419,11 @@ int main(void) {
 	btree_insert(&root, "08_eighth");
 
 	btree_delete(&root, "04_fourth");
-	btree_delete(&root, "05_fifth");
+	btree_insert(&root, "04_fourth");
+	btree_delete(&root, "04_fourth");
+	btree_delete(&root, "03_third");
 
-	//btree_delete(root, "04_fourth");
+//btree_delete(root, "04_fourth");
 	/*btree_insert(&root, "09_nineth");
 	 btree_insert(&root, "10_tenth");
 	 btree_insert(&root, "11_eleventh");

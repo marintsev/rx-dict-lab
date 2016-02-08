@@ -13,7 +13,8 @@ void btree_node_allocate(struct node_t * x, int n) {
 	assert(x->pointers == NULL);
 	assert(x->keys == NULL);
 	x->n = n;
-	int max_n = 2 * MIN_CHILDREN - 1;
+	// 409 если сделать произвольной длины
+	int max_n = 31; //2 * MIN_CHILDREN - 1;
 	x->keys = malloc(sizeof(char*) * max_n);
 	x->pointers = malloc(sizeof(char*) * (max_n + 1));
 }
@@ -38,6 +39,72 @@ void btree_node_free(struct node_t * x) {
 	x->n = 0;
 	free(x->keys);
 	free(x);
+}
+
+#define CROSS_NOT		0
+#define CROSS_BEGIN		1
+#define CROSS_MID		2
+#define CROSS_END		3
+#define CROSS_SKIP		4
+
+// пересекает ли отрезок размером length с началом в here границу border?
+int is_cross(int here, int length, int border) {
+	if (here < border) {
+		if (here < border - length) {
+			return CROSS_NOT; // не пересекает
+		} else if (here == border - length) {
+			return CROSS_END; // концом
+		} else if (here > border - length) {
+			return CROSS_MID; // середина
+		}
+	} else if (here == border) {
+		return CROSS_BEGIN; // начало
+	} else if (here > border) {
+		return CROSS_SKIP; // заведомо после
+	}
+}
+
+int btree_leaf_who_at_middle(struct node_t * x) {
+	assert(x->is_leaf);
+	int offset = 2;
+	int i = 0;
+	again: if (i == x->n) {
+		return -1;
+	} else {
+		int res = is_cross(offset, 8, 2048);
+		if (res != CROSS_NOT)
+			return i;
+		offset += 8;
+		res = is_cross(offset, 128, 2048);
+		if (res != CROSS_NOT && res != CROSS_END)
+			return i;
+		offset += 128;
+		i++;
+		goto again;
+	}
+}
+
+int btree_node_who_at_middle(struct node_t * x) {
+	assert(x->is_leaf);
+	int offset = 2;
+	int i = 0;
+	again: if (i == x->n) {
+		int res = is_cross(offset, 8, 2048);
+		if (res != CROSS_NOT && res != CROSS_END)
+			return i;
+		return -1;
+	} else {
+		int res = is_cross(offset, 8, 2048);
+		if (res != CROSS_NOT)
+			return i;
+		offset += 8;
+		res = is_cross(offset, 128, 2048);
+		if (res != CROSS_NOT && res != CROSS_END)
+			return i;
+		offset += 128;
+		i++;
+		goto again;
+	}
 }
 
 // x -- ссылка на родительский узел
@@ -80,10 +147,6 @@ void btree_split_child(struct node_t * x, int i) {
 	x->n++;
 }
 
-int btree_node_is_full(struct node_t * x) {
-	return (x->n == 2 * MIN_CHILDREN - 1);
-}
-
 void btree_node_load_key(struct node_t * x, int i, char * k) {
 	x->keys[i] = malloc(strlen(k) + 1);
 	strcpy(x->keys[i], k);
@@ -94,73 +157,6 @@ char * btree_node_save_key(struct node_t * x, int i) {
 	char * result = malloc(strlen(key) + 1);
 	strcpy(result, key);
 	return result;
-}
-
-void btree_insert_nonfull(struct node_t * x, char * k) {
-	if (x == NULL) {
-		fprintf( stderr, "[FATAL]: x == NULL.\n");
-		exit(1);
-	}
-
-	int i = x->n - 1;
-	if (x->is_leaf) {
-		//fprintf( stderr, "[INFO]: x is leaf.\n" );
-		for (; i >= 0; i--) {
-			if (strcmp(k, x->keys[i]) < 0)
-				x->keys[i + 1] = x->keys[i]; // !
-			else
-				break;
-		}
-		//x->keys[i + 1] = k; // !
-		btree_node_load_key(x, i + 1, k);
-		x->n++;
-		//
-	} else {
-		for (; i >= 0; i--) {
-			if (strcmp(k, x->keys[i]) < 0)
-				x->keys[i + 1] = x->keys[i]; // !
-			else
-				break;
-		}
-		i++;
-		if (btree_node_is_full(x->pointers[i])) {
-			btree_split_child(x, i);
-			if (strcmp(k, x->keys[i]) > 0)
-				i++;
-		}
-		btree_insert_nonfull(x->pointers[i], k);
-	}
-}
-
-void btree_insert(struct node_t ** t, char * k) {
-	struct node_t *r, *s;
-
-	if (t == NULL) {
-		fprintf( stderr, "btree_insert: t == NULL.\n");
-		exit(1);
-	}
-
-	r = *t;
-
-	if (r == NULL) {
-		fprintf( stderr, "btree_insert: r == NULL.\n");
-		exit(1);
-	}
-
-	// корень заполнен?
-	if (btree_node_is_full(r)) {
-		//fprintf( stderr, "[INFO] btree_node_is_full(r).\n" );
-		s = btree_node_create();
-		*t = s;
-		s->is_leaf = 0;
-		btree_node_allocate(s, 0);
-		s->pointers[0] = r;
-		btree_split_child(s, 0);
-		btree_insert_nonfull(s, k);
-	} else {
-		//fprintf( stderr, "[INFO] !btree_node_is_full(r).\n" );
-		btree_insert_nonfull(r, k);
-	}
 }
 
 int btree_delete(struct node_t ** root, char * k) {

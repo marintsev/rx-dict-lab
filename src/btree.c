@@ -36,7 +36,7 @@ void btree_split_child(struct node_t * x, int i) {
 	// копируем в новый узел ключи после k_i:
 	// z.keys = (k_{i+1} k_{i+2} ... k_{n-1})
 	int central = btree_node_who_at_middle(y);
-	fprintf(stderr, "central: %d.\n", central);
+	//fprintf(stderr, "central: %d.\n", central);
 	assert(central != -1);
 
 	btree_node_allocate(z, y->n - central - 1);

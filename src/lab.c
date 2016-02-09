@@ -38,7 +38,7 @@ void btree_write_helper(struct node_t * root, void * page, int page_index,
 	if (root == NULL)
 		return;
 	int length = btree_node_encode(page, root);
-	fprintf( stderr, "Длина узла: %d.\n", length);
+	//fprintf( stderr, "Длина узла: %d.\n", length);
 	fwrite(page, 4096, 1, f);
 	if (!root->is_leaf) {
 		int i;
@@ -64,8 +64,12 @@ int main(void) {
 	}
 	int i;
 
+	char str[256];
 	for (i = 0; i < 29; i++) {
 		//fprintf(stderr, "i: %d.\n", i);
+
+		/*sprintf(str, "word_%09d", i);
+		btree_insert(&root, str);*/
 		btree_insert(&root, "01_first");
 		btree_insert(&root, "02_second");
 		btree_insert(&root, "03_third");

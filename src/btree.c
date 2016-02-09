@@ -1,4 +1,5 @@
 #include "btree.h"
+#include "btree_node.h"
 
 struct node_t * btree_create() {
 	struct node_t * new = btree_node_create();
@@ -79,15 +80,13 @@ char * btree_node_save_key(struct node_t * x, int i) {
 	return result;
 }
 
-int btree_delete(struct node_t ** root, char * k) {
-	return btree_delete_detail(root, *root, k);
-}
-
+//  0 -- ключ был и мы его удалили
+// -1 -- ключа не было
 int btree_delete_from_leaf(struct node_t * x, char * k) {
 	int i;
 	for (i = 0; i < x->n; i++) {
 		int cmp_res = strcmp(k, x->keys[i]);
-		if (cmp_res < 0)
+		if (cmp_res < 0) // мы либо пропустили ключ, либо его здесь никогда не было
 			break;
 		if (cmp_res == 0) {
 			// удаляем
@@ -102,9 +101,10 @@ int btree_delete_from_leaf(struct node_t * x, char * k) {
 				x->keys[j - 1] = x->keys[j];
 			x->n--;
 			return 0;
-			//break; // будем надеяться, что он такой один
+			//break; // будем считать, пока, что за раз удаляем только один такой ключ
 		}
 	}
+	return -1;
 }
 
 int btree_find_key(struct node_t *x, char *k) {
@@ -118,6 +118,8 @@ int btree_find_key(struct node_t *x, char *k) {
 	}
 	return found_index;
 }
+
+int btree_delete_detail(struct node_t ** root, struct node_t * x, char * k);
 
 int btree_delete_from_this_node(struct node_t ** root, struct node_t * x,
 		int found_index, char * k) {
@@ -369,4 +371,8 @@ int btree_delete_detail(struct node_t ** root, struct node_t * x, char * k) {
 			return btree_delete_from_subnode(root, x, k);
 		}
 	}
+}
+
+int btree_delete(struct node_t ** root, char * k) {
+	return btree_delete_detail(root, *root, k);
 }

@@ -26,12 +26,12 @@ int is_cross(int here, int length, int border) {
 			return CROSS_NOT; // не пересекает
 		} else if (here == border - length) {
 			return CROSS_END; // концом
-		} else if (here > border - length) {
+		} else { //if (here > border - length) {
 			return CROSS_MID; // середина
 		}
 	} else if (here == border) {
 		return CROSS_BEGIN; // начало
-	} else if (here > border) {
+	} else { // if (here > border) {
 		return CROSS_SKIP; // заведомо после
 	}
 }
@@ -119,7 +119,7 @@ int btree_node_encode(void * page, struct node_t * node) {
 			p1[0] = length;
 			offset++;
 			p1++;
-			strncpy(p1, node->keys[i], length);
+			strncpy( (char*) p1, node->keys[i], length);
 			offset += length;
 			p1 += length;
 		}
@@ -135,7 +135,7 @@ int btree_node_encode(void * page, struct node_t * node) {
 			p1[0] = length;
 			offset++;
 			p1++;
-			strncpy(p1, node->keys[i], length);
+			strncpy( (char*) p1, node->keys[i], length);
 			offset += length;
 			p1 += length;
 		}

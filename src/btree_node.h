@@ -9,9 +9,11 @@
 #define CROSS_END		3
 #define CROSS_SKIP		4
 
+extern struct node_t * btree_node_create();
 extern int btree_node_encode(void * page, struct node_t * node);
 extern int btree_node_is_full(struct node_t * x);
 extern struct node_t * btree_node_create();
 extern void btree_node_allocate(struct node_t * x, int n);
+extern int btree_node_who_at_middle(struct node_t * x);
 
 #endif

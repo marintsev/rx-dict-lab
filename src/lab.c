@@ -37,7 +37,8 @@ void btree_write_helper(struct node_t * root, void * page, int page_index,
 		FILE * f) {
 	if (root == NULL)
 		return;
-	int length = btree_node_encode(page, root);
+	/*int length = */
+	btree_node_encode(page, root);
 	//fprintf( stderr, "Длина узла: %d.\n", length);
 	fwrite(page, 4096, 1, f);
 	if (!root->is_leaf) {
@@ -64,7 +65,7 @@ int main(void) {
 	}
 	int i;
 
-	char str[256];
+//	char str[256];
 	for (i = 0; i < 29; i++) {
 		//fprintf(stderr, "i: %d.\n", i);
 
